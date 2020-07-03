@@ -1,18 +1,23 @@
 // Runs on the teensy
+// Walter Gordy
+// Fourien, Inc
 
 #define HWSERIAL Serial1
 #include <CircularBuffer.h>
 CircularBuffer<char, 255> buffer;
 
 #define PREAMBLE            0x55
-#define PREAMBLE_COUNT      4 // must see 4 preambles in a row to start a packet
-#define START_BYTE          0xF0
-#define END_BYTE            0xF7
+#define PREAMBLE_COUNT      4   // must recieve 4 preambles in a row to start a packet
 #define DIGITAL_IO_MESSAGE  0x0E
+#define ASCII_MESSAGE       'A'
 
 void setup() {
   // Run usb serial at 8mb/s 
-  Serial.begin(4000000);
+  Serial.begin(8000000);
+
+  pinMode(13, OUTPUT);
+  digitalWrite(13, 1);
+  
 }
 
 int packet_flag = 0;
@@ -25,6 +30,7 @@ void loop() {
   serviceIncomingSerial(); 
 }
 
+// Pushes incoming serail to a circular buffer. When the buffered packet is fully loaded we can parse it. 
 void serviceIncomingSerial() {
   while (Serial.available() > 0) {
     incoming_byte = Serial.read();
@@ -49,11 +55,71 @@ void serviceIncomingSerial() {
   }
 }
 
-
 void parseBuffer() {
-  Serial.println("Parsing Buffer");
-  while(buffer.size() > 0) {
-    Serial.print(buffer.shift());
+  sendAsciiMessage("Parsing Buffer");
+  char len = buffer.shift();
+  char type = buffer.shift();
+  char pin;
+  char val;
+  
+  switch(type) {
+    case DIGITAL_IO_MESSAGE:
+      pin = buffer.shift();
+      val = buffer.shift();
+      if(val != 0)
+        val = 1;
+      if(pin == 13)
+        digitalWrite(pin, val);
+      break; // DIGITAL_IO_MESSAGE
+
+      
+    case '1':
+      sendAsciiMessage("Packet 1");
+      pin = buffer.shift();
+      val = buffer.shift();
+
+      if(pin == '2'){
+        sendAsciiMessage("Pin 2");
+        if(val == '0'){
+          sendAsciiMessage("Off");
+          digitalWrite(13, 0);
+        }
+        if(val == '1'){
+          sendAsciiMessage("On");
+          digitalWrite(13, 1);
+        }
+      break; // case '1'
+    }
   }
-  Serial.println("");
+  
+  buffer.clear();
 }
+
+void sendPreamble(){
+  for(int i = 0; i < PREAMBLE_COUNT; i++)
+    Serial.write(PREAMBLE);
+}
+
+void sendAsciiMessage(String message) {
+  sendPreamble();
+  Serial.write(message.length() + 1);
+  Serial.write(ASCII_MESSAGE);
+  Serial.println(message);
+} 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
