@@ -6,6 +6,9 @@
 #include <CircularBuffer.h>
 CircularBuffer<char, 255> buffer;
 
+#define DEBUG 1
+
+
 #define PREAMBLE            0x55
 #define PREAMBLE_COUNT      4   // must recieve 4 preambles in a row to start a packet
 #define DIGITAL_IO_MESSAGE  0x0E
@@ -66,6 +69,9 @@ void parseBuffer() {
     case DIGITAL_IO_MESSAGE:
       pin = buffer.shift();
       val = buffer.shift();
+      debug("Digital IO");
+      debug(String(pin, DEC));
+      debug(String(val, DEC));
       if(val != 0)
         val = 1;
       if(pin == 13)
@@ -98,6 +104,12 @@ void parseBuffer() {
 void sendPreamble(){
   for(int i = 0; i < PREAMBLE_COUNT; i++)
     Serial.write(PREAMBLE);
+}
+
+void debug(String message) {
+  #ifdef DEBUG
+  sendAsciiMessage(message);
+  #endif  
 }
 
 void sendAsciiMessage(String message) {
