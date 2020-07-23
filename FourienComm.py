@@ -47,7 +47,6 @@ class FourienComm:
     def memory_read_callback_holder(self, address, data, time):
         return 
     
-    
     def set_ascii_message_callback(self, callback_function):
         self.ascii_message_callback = callback_function
     
@@ -86,17 +85,15 @@ class FourienComm:
     
        
     def parse_buffer(self, buf):
-        packet_len = (buf[0] << 8) + buf[1]
-        buf = buf[2:]
-        packet_type = buf[0]
-        buf = buf[1:]
+        packet_len = (buf.pop(0) << 8) + buf.pop(0)
+        
+        packet_type = buf.pop(0)
         data_packet = []
         
-        time = buf[0] << 24
-        time += buf[1] << 16
-        time += buf[2] << 8
-        time += buf[3]
-        buf = buf[4:]
+        time = buf.pop(0) << 24
+        time += buf.pop(0) << 16
+        time += buf.pop(0) << 8
+        time += buf.pop(0)
         
         if packet_type == self.ASCII_MESSAGE:
             message = ""
@@ -112,8 +109,8 @@ class FourienComm:
                 
             #if address == 255:
             #    print("Heartbeat Message")
-            self.memory_read_callback_holder(address, data_packet, time)
-            #print(address, data_packet, time)
+            self.memory_read_callback(address, data_packet, time)
+            #print(packet_type, address, data_packet, time)
     
     def get_version(self):
         packet = []
@@ -145,7 +142,7 @@ class FourienComm:
         packet.append(0)
         self.send_data(packet)
         
-    def read_memory(self, address):\
+    def read_memory(self, address):
         packet = []
         packet.append(self.PREAMBLE)
         packet.append(self.PREAMBLE)
