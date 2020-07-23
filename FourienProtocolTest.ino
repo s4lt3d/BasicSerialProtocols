@@ -4,7 +4,7 @@
 
 
 #define DEBUG 1
-#define VERSION                "Ver 0.018 2020/07/22"
+#define VERSION                "Ver 0.019 2020/07/22"
 
 #include "Adafruit_ZeroFFT.h"
 #include "FourienComm.h"
@@ -24,6 +24,8 @@ int fastUpdate_flag = 0;
 int heartBeat_flag = 0;
 int randomGen_flag = 0;
 
+unsigned long register_memory[256]; 
+
 /*
  * Function:  setup 
  * --------------------
@@ -35,7 +37,6 @@ void setup() {
   for(int i = 0; i < 256; i++) 
   {
     register_memory[i] = 0;
-    register_time[i] = 0;
   }
   register_memory[ANALOG_SAMPLE_ADDR] = DEFAULT_ANALOG_SAMPLES;
 
@@ -49,7 +50,7 @@ void setup() {
   Serial.begin(115200);
   sendVersion(VERSION);
   
-  heatbeatTimer.begin(sendHeartBeat, 1000000);  // microseconds
+  heatbeatTimer.begin(sendHeartBeat, 10000000);  // microseconds
 
   // set callback functions for comm events
   setMemoryWriteCallback(onMemoryWrite);
@@ -67,7 +68,7 @@ void loop()
   if(heartBeat_flag > 0)
   {
     heartBeat_flag = 0;
-    sendMemoryMessage(255);
+    sendMemoryMessage(0, 0, 0);
   }
 }
 /*
@@ -81,7 +82,16 @@ void loop()
  */
 void onMemoryWrite(unsigned int address, unsigned long data)
 {
- // sendAsciiMessage("New Data Works");
+  register_memory[address] = data;
+  sendMemoryMessage(address, register_memory[address], 0);
+  if(address == 13) {
+    if(data > 0) {
+      digitalWrite(13, HIGH);  
+    }
+    else {
+      digitalWrite(13, LOW);
+    }
+  }
 }
 /*
  * Function:  onMemoryReadWrite 
@@ -92,15 +102,28 @@ void onMemoryWrite(unsigned int address, unsigned long data)
  *
  *  address: the address a read was requested from, 16 bit
  */
-void onMemoryRead(unsigned int)
+void onMemoryRead(unsigned int address)
 {
-  //sendAsciiMessage("Neweset Data Works");
+  if(address != 17)
+  {
+    sendMemoryMessage(address, register_memory[address], 0);
+  }
+  else
+  {
+    unsigned long data[20];
+    for(int i = 0; i < 20; i++)
+    {
+      unsigned long p = millis();
+      data[i] = (unsigned long)((sin(i + p) + 1) * 1000);
+    }
+    burstMemoryMessage(17, data, 20, 0);
+  
+  }
 }
-
 
 void sendHeartBeat() 
 {
-  //heartBeat_flag = 1;
+  heartBeat_flag = 1;
 }
 
 float sine = 0;
@@ -112,7 +135,6 @@ void fastUpdate()
   longsine = (sin(sine) + 1) * 2048;
   longsine = min(4095, max(0, longsine)); // clamp it 
   register_memory[17] = longsine;
-  register_time[17] = millis();
   fastUpdate_flag = 1;
  // analogWrite(A21, (int)longsine);
 }
