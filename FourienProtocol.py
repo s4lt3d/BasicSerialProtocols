@@ -5,13 +5,21 @@ import numpy as np
 gl = 0
 
 def ascii_message(message, time):
+    print("ascii message ---")
     print(message, time)
+    print("---")
 
 def memory_read(address, data, time):
+    print("memory read message ---")
     print(f"{address}, {data}, {time}")
+    print("---")
+
+def memory_write(address, data, time):
+    print("memory write message ---")
+    print(f"{address}, {data}, {time}")
+    print("---")
 
 def main():
-    
     comm = fc.FourienComm("COM4")
     comm.set_ascii_message_callback(ascii_message)
     comm.set_memory_read_callback(memory_read)
