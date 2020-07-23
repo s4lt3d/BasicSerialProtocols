@@ -39,14 +39,11 @@ def service_serial():
                         buffer = []
         time.sleep(0.001) # don't run away with the thread
         
-        
 def parse_buffer(buf):
     packet_len = (buf[0] << 8) + buf[1]
     buf = buf[2:]
     packet_type = buf[0]
     buf = buf[1:]
-    address = 0
-    data = 0
     data_packet = []
     
     time = buf[0] << 24
@@ -144,3 +141,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    
