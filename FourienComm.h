@@ -1,3 +1,4 @@
+// This is an extra library that will need to be installed. V1.1.3 by Agileware.  
 #include <CircularBuffer.h>
 
 #ifndef __FOURIENCOMM_H
@@ -13,21 +14,17 @@
 void serviceIncomingSerial();
 void parseBuffer();
 void sendPreamble();
-void sendMemoryMessage(unsigned int address);
-void burstMemoryMessage(unsigned int address, unsigned long memory_contents[], int memory_len);
+void sendMemoryMessage(unsigned int address, unsigned long data, unsigned long millis_time = 0);
+void burstMemoryMessage(unsigned int address, unsigned long memory_contents[], int memory_len, unsigned long millis_time);
 void debug(String message);
 void sendAsciiMessage(String message);
 void sendVersion(String ver);
-unsigned long mem[2096];
 
 int incoming_byte;
 int expected_size = 2;
 int preamble_count = 0;
 
 CircularBuffer<char, 2048> buffer;
-
-unsigned long register_memory[256]; 
-unsigned long register_time[256]; // in millis()
 
 void (*memory_write_callback)(unsigned int, unsigned long);
 void (*memory_read_callback)(unsigned int);
@@ -84,7 +81,7 @@ void parseBuffer() {
     case VERSION_MESSAGE:
       
       sendAsciiMessage(VERSION);
-      memory_write_callback(0,0);
+      
       break;
 
     case MEMORY_WRITE_MESSAGE:
@@ -97,8 +94,9 @@ void parseBuffer() {
       data |= ((unsigned long)buffer.shift()) << 16;
       data |= ((unsigned long)buffer.shift()) << 8;
       data |= (unsigned long)buffer.shift();
-      register_memory[address] = data;
-      data = register_memory[address];
+      
+      memory_write_callback(address,data);
+      
       break;
 
     case MEMORY_READ_MESSAGE:
@@ -106,7 +104,8 @@ void parseBuffer() {
       address = (unsigned int)buffer.shift() << 8;
       address |= (unsigned int)buffer.shift();
       address &= 0xFFFF;      
-      sendMemoryMessage(address);
+      memory_read_callback(address);
+      
       
       if(address == 0xAAAA) {
         //_reboot_Teensyduino_();
@@ -123,47 +122,35 @@ void sendPreamble(){
 }
 
 // Memory Read will include time in milliseconds
-void sendMemoryMessage(unsigned int address) {
-  unsigned long data;
-  unsigned long t = 0;
-  sendPreamble();
-  
-  if(register_time[address] == 0)
-    register_time[address] = millis();
-  
-  t = register_time[address];
-  
-  data = register_memory[address];
+void sendMemoryMessage(unsigned int address, unsigned long data, unsigned long millis_time = 0) {
 
+  if(millis_time == 0)
+    millis_time = millis();
+  
+  unsigned long mem[1];
   mem[0] = data;
-  burstMemoryMessage(address, mem, 1);
+  burstMemoryMessage(address, mem, 1, millis_time);
 }
 
 // Memory Read will include time in milliseconds
-void burstMemoryMessage(unsigned int address, unsigned long memory_contents[], int memory_len) {
-  unsigned long t = 0;
-  unsigned long data = 0;
-  //byte output_stream[memory_len + 12];
+void burstMemoryMessage(unsigned int address, unsigned long memory_contents[], int memory_len, unsigned long millis_time) {
+  sendPreamble();
   
-  if(address < 256) {
-    if(register_time[address] == 0)
-      register_time[address] = millis();
-    t = register_time[address];
-  } else {
-    t = millis();
-  }
-
+  if(millis_time == 0)
+    millis_time = millis();
+  
   int i = 0;
+  unsigned long data;
 
   int packet_len = 8 + (memory_len * 4);
 
   Serial.write((byte)((packet_len >> 8) & 0xFF));
   Serial.write((byte)(packet_len & 0xFF));
   Serial.write(MEMORY_READ_MESSAGE);
-  Serial.write((byte)((t >> 24) & 0xFF));
-  Serial.write((byte)((t >> 16) & 0xFF));
-  Serial.write((byte)((t >> 8) & 0xFF));
-  Serial.write((byte)((t) & 0xFF));  
+  Serial.write((byte)((millis_time >> 24) & 0xFF));
+  Serial.write((byte)((millis_time >> 16) & 0xFF));
+  Serial.write((byte)((millis_time >> 8) & 0xFF));
+  Serial.write((byte)(millis_time & 0xFF));  
   Serial.write((byte)((address >> 8) & 0xFF));
   Serial.write((byte)((address) & 0xFF));
   for(int i = 0; i < memory_len; i++) {
@@ -173,11 +160,7 @@ void burstMemoryMessage(unsigned int address, unsigned long memory_contents[], i
     Serial.write((byte)((data >> 8) & 0xFF));
     Serial.write((byte)((data) & 0xFF));
   }  
-
-  if(address < 256) {
-    register_time[address] = 0;
-  }
-  //debug("No crash");
+  Serial.write(0);
 }
 
 
@@ -198,6 +181,7 @@ void sendAsciiMessage(String message) {
   Serial.write((byte)((t >> 8) & 0xFF));
   Serial.write((byte)((t) & 0xFF));
   Serial.println(message);
+  Serial.write(0);
 }
 
 void sendVersion(String ver)
