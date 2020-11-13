@@ -33,7 +33,7 @@ def main():
     while True:
         
         i = input("Q to quit\r\nV for Version\r\nW for write test\r\nR for read test\r\nB for burst of memory\r\nInput: ")
-        i == i.upper()
+        i = i.lower()
         if i == 'q':
             comm.close()
             break
